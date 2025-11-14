@@ -1,229 +1,91 @@
 """Research Tools.
 
 This module provides search and content processing utilities for the research agent,
-including web search capabilities and content summarization tools.
+using Tavily for URL discovery and fetching full webpage content.
 """
 
-from datetime import datetime
-
 import httpx
-from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage, ToolMessage
-from langchain_core.tools import InjectedToolArg, InjectedToolCallId, tool
-from langgraph.prebuilt import InjectedState
-from langgraph.types import Command
+from langchain_core.tools import InjectedToolArg, tool
 from markdownify import markdownify
-from pydantic import BaseModel, Field
 from tavily import TavilyClient
 from typing_extensions import Annotated, Literal
 
-from research_agent.prompts import SUMMARIZE_WEB_SEARCH
-
-# Summarization model
-summarization_model = init_chat_model(model="openai:gpt-4o-mini")
 tavily_client = TavilyClient()
 
 
-class Summary(BaseModel):
-    """Schema for webpage content summarization."""
-
-    filename: str = Field(description="Name of the file to store.")
-    summary: str = Field(description="Key learnings from the webpage.")
-
-
-def get_today_str() -> str:
-    """Get current date in a human-readable format."""
-    return datetime.now().strftime("%a %b %-d, %Y")
-
-
-def run_tavily_search(
-    search_query: str,
-    max_results: int = 1,
-    topic: Literal["general", "news", "finance"] = "general",
-    include_raw_content: bool = True,
-) -> dict:
-    """Perform search using Tavily API for a single query.
+def fetch_webpage_content(url: str, timeout: float = 10.0) -> str:
+    """Fetch and convert webpage content to markdown.
 
     Args:
-        search_query: Search query to execute
-        max_results: Maximum number of results per query
-        topic: Topic filter for search results
-        include_raw_content: Whether to include raw webpage content
+        url: URL to fetch
+        timeout: Request timeout in seconds
 
     Returns:
-        Search results dictionary
+        Webpage content as markdown
     """
-    result = tavily_client.search(
-        search_query,
-        max_results=max_results,
-        include_raw_content=include_raw_content,
-        topic=topic,
-    )
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+    }
 
-    return result
-
-
-def summarize_webpage_content(webpage_content: str) -> Summary:
-    """Summarize webpage content using the configured summarization model.
-
-    Args:
-        webpage_content: Raw webpage content to summarize
-
-    Returns:
-        Summary object with filename and summary
-    """
     try:
-        # Set up structured output model for summarization
-        structured_model = summarization_model.with_structured_output(Summary)
-
-        # Generate summary
-        summary_and_filename = structured_model.invoke(
-            [
-                HumanMessage(
-                    content=SUMMARIZE_WEB_SEARCH.format(
-                        webpage_content=webpage_content, date=get_today_str()
-                    )
-                )
-            ]
-        )
-
-        return summary_and_filename
-
-    except Exception:
-        # Return a basic summary object on failure
-        return Summary(
-            filename="search_result.md",
-            summary=webpage_content[:1000] + "..."
-            if len(webpage_content) > 1000
-            else webpage_content,
-        )
-
-
-def process_search_results(results: dict) -> list[dict]:
-    """Process search results by summarizing content where available.
-
-    Args:
-        results: Tavily search results dictionary
-
-    Returns:
-        List of processed results with summaries
-    """
-    processed_results = []
-
-    # Create a client for HTTP requests
-    HTTPX_CLIENT = httpx.Client()
-
-    for result in results.get("results", []):
-        # Get url
-        url = result["url"]
-
-        # Read url
-        response = HTTPX_CLIENT.get(url)
+        response = httpx.get(url, headers=headers, timeout=timeout)
         response.raise_for_status()
-
-        if response.status_code == 200:
-            # Convert HTML to markdown
-            raw_content = markdownify(response.text)
-            summary_obj = summarize_webpage_content(raw_content)
-        else:
-            # Use Tavily's generated summary
-            raw_content = result.get("raw_content", "")
-            summary_obj = Summary(
-                filename=None,
-                summary=result.get("content", "Error reading URL; try another search."),
-            )
-
-        processed_results.append(
-            {
-                "url": result["url"],
-                "title": result["title"],
-                "summary": summary_obj.summary,
-                "filename": summary_obj.filename,
-                "raw_content": raw_content,
-            }
-        )
-
-    return processed_results
+        return markdownify(response.text)
+    except Exception as e:
+        return f"Error fetching content from {url}: {str(e)}"
 
 
 @tool(parse_docstring=True)
 def tavily_search(
     query: str,
-    state: Annotated[dict, InjectedState],
-    tool_call_id: Annotated[str, InjectedToolCallId],
     max_results: Annotated[int, InjectedToolArg] = 1,
     topic: Annotated[
         Literal["general", "news", "finance"], InjectedToolArg
     ] = "general",
-) -> Command:
-    """Search web and save detailed results to files while returning minimal context.
+) -> str:
+    """Search the web for information on a given query.
 
-    Performs web search and saves full content to files for context offloading.
-    Returns only essential information to help the agent decide on next steps.
+    Uses Tavily to discover relevant URLs, then fetches and returns full webpage content as markdown.
 
     Args:
         query: Search query to execute
-        state: Injected agent state for file storage
-        tool_call_id: Injected tool call identifier
         max_results: Maximum number of results to return (default: 1)
         topic: Topic filter - 'general', 'news', or 'finance' (default: 'general')
 
     Returns:
-        Command that saves full results to files and provides minimal summary
+        Formatted search results with full webpage content
     """
-    # Execute search
-    search_results = run_tavily_search(
+    # Use Tavily to discover URLs
+    search_results = tavily_client.search(
         query,
         max_results=max_results,
         topic=topic,
-        include_raw_content=True,
     )
 
-    # Process and summarize results
-    processed_results = process_search_results(search_results)
+    # Fetch full content for each URL
+    result_texts = []
+    for result in search_results.get("results", []):
+        url = result["url"]
+        title = result["title"]
 
-    # Save each result to a file and prepare summary
-    files = state.get("files", {})
-    saved_files = []
-    summaries = []
+        # Fetch webpage content
+        content = fetch_webpage_content(url)
 
-    for i, result in enumerate(processed_results):
-        # Use the AI-generated filename from summarization
-        filename = result["filename"]
+        result_text = f"""## {title}
+**URL:** {url}
 
-        # Create file content with full details
-        file_content = f"""# Search Result: {result["title"]}
+{content}
 
-**URL:** {result["url"]}
-**Query:** {query}
-**Date:** {get_today_str()}
-
-## Summary
-{result["summary"]}
-
-## Raw Content
-{result["raw_content"] if result["raw_content"] else "No raw content available"}
+---
 """
+        result_texts.append(result_text)
 
-        files[filename] = file_content
-        saved_files.append(filename)
-        # Use only first 80 chars for very concise context
-        summaries.append(f"- {filename}: {result['summary']}...")
+    # Format final response
+    response = f"""🔍 Found {len(result_texts)} result(s) for '{query}':
 
-    # Create minimal summary for tool message - focus on what was collected
-    summary_text = f"""🔍 Found {len(processed_results)} result(s) for '{query}':
+{chr(10).join(result_texts)}"""
 
-{chr(10).join(summaries)}
-
-Files: {", ".join(saved_files)}
-💡 Use read_file() to access full details when needed."""
-
-    return Command(
-        update={
-            "files": files,
-            "messages": [ToolMessage(summary_text, tool_call_id=tool_call_id)],
-        }
-    )
+    return response
 
 
 @tool(parse_docstring=True)
