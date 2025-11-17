@@ -1,10 +1,13 @@
 # 🚀🧠 Deepagent Quickstarts
 
+[Deepagents](https://github.com/langchain-ai/deepagents) is a simple, open source agent harness. It uses some common principle seen in popular agents such as [Claude Code](https://code.claude.com/docs) and [Manus](https://www.youtube.com/watch?v=6_BcCthVvb8), including **planning** (prior to task execution), **computer access** (giving the able access to a shell and a filesystem), and **sub-agent delegation** (isolated task execution). This repo has a collection of quickstarts that demonstrate different agents that can be easily configured on top of the  `deepagents` harness.
+
 <img width="1536" height="1024" alt="quick" src="https://github.com/user-attachments/assets/d3d94751-2c33-4686-9d11-a43b975fc4fe" />
 
-## Deepagents Overview
+## 📚 Resources
 
-[Deepagents](https://github.com/langchain-ai/deepagents) is a simple, opinionated agent harness build on top of [LangGraph](https://github.com/langchain-ai/langgraph). It features a few general, built-in tools that are useful for building many type of agents. These built-in tools follow a few common patterns used across popular agents such as [Manus](https://rlancemartin.github.io/2025/10/15/manus/) and [Claude Code](https://www.claude.com/product/claude-code), including the ability to work, use a filesystem/shell, and delegate work to subagents. This repo has a collection of quickstarts that demonstrate different agents that can be easily configured on top of the  `deepagents` harness.
+- **[Documentation](https://docs.langchain.com/oss/python/deepagents/overview)** - Full overview and API reference
+- **[Deepagents Repo](https://github.com/langchain-ai/deepagents)** - Deepagents package 
 
 ## Quickstarts
 
@@ -12,7 +15,7 @@ Here are the currently supported quickstarts:
 
 | Quickstart Name | Location | Description |
 |----------------|----------|-------------|
-| Deep Research | `examples/deep_research/` | A research agent that conducts multi-step web research using Tavily for URL discovery, fetches full webpage content, and coordinates work through parallel sub-agents and strategic reflection |
+| [Deep Research](deep_research/README.md) | `deep_research/` | A research agent that conducts multi-step web research using Tavily for URL discovery, fetches full webpage content, and coordinates work through parallel sub-agents and strategic reflection |
 
 ## Built-In Deepagent Components
 
