@@ -239,13 +239,21 @@ examples/personal_assistant/
 
 This email will trigger the `respond` classification because it's addressed to Lance with a direct technical question:
 
-```json
-{
-  "author": "Sarah Chen <sarah.chen@techcorp.com>",
-  "to": "Lance Martin <lance@langchain.dev>",
-  "subject": "Question about LangGraph deployment",
-  "email_thread": "Hi Lance,\n\nI'm working on deploying a LangGraph agent to production and ran into an issue with the store configuration. When I try to use a custom store, I get an error about the platform providing its own persistence.\n\nCould you clarify when we should pass a store vs. letting the platform handle it?\n\nAlso, do you have any examples of deploying agents with custom HITL middleware?\n\nThanks!\nSarah"
-}
+```markdown
+**Subject**: Question about LangGraph deployment
+**From**: Sarah Chen <sarah.chen@techcorp.com>
+**To**: Lance Martin <lance@langchain.dev>
+
+Hi Lance,
+
+I'm working on deploying a LangGraph agent to production and ran into an issue with the store configuration. When I try to use a custom store, I get an error about the platform providing its own persistence.
+
+Could you clarify when we should pass a store vs. letting the platform handle it?
+
+Also, do you have any examples of deploying agents with custom HITL middleware?
+
+Thanks!
+Sarah
 ```
 
 **Why this will be responded to:**
@@ -255,13 +263,19 @@ This email will trigger the `respond` classification because it's addressed to L
 
 ### Example 2: Meeting Request (Will be RESPONDED to)
 
-```json
-{
-  "author": "Alex Rodriguez <alex.rodriguez@company.com>",
-  "to": "Lance Martin <lance@langchain.dev>",
-  "subject": "Sync on agent architecture",
-  "email_thread": "Hey Lance,\n\nCan we schedule 30 minutes next week to discuss the multi-agent architecture for our project? I have some questions about routing between agents and want to get your input.\n\nI'm free Tuesday afternoon or Thursday morning. Let me know what works!\n\nBest,\nAlex"
-}
+```markdown
+**Subject**: Sync on agent architecture
+**From**: Alex Rodriguez <alex.rodriguez@company.com>
+**To**: Lance Martin <lance@langchain.dev>
+
+Hey Lance,
+
+Can we schedule 30 minutes next week to discuss the multi-agent architecture for our project? I have some questions about routing between agents and want to get your input.
+
+I'm free Tuesday afternoon or Thursday morning. Let me know what works!
+
+Best,
+Alex
 ```
 
 **Why this will be responded to:**
@@ -271,13 +285,18 @@ This email will trigger the `respond` classification because it's addressed to L
 
 ### Example 3: FYI Email (Will be IGNORED)
 
-```json
-{
-  "author": "Newsletter <newsletter@techblog.com>",
-  "to": "Lance Martin <lance@langchain.dev>",
-  "subject": "Weekly AI Newsletter - Top Articles",
-  "email_thread": "This week's top articles:\n\n1. New advances in RAG systems\n2. Latest LLM benchmarks\n3. Multi-agent coordination patterns\n\n[Read more...]"
-}
+```markdown
+**Subject**: Weekly AI Newsletter - Top Articles
+**From**: Newsletter <newsletter@techblog.com>
+**To**: Lance Martin <lance@langchain.dev>
+
+This week's top articles:
+
+1. New advances in RAG systems
+2. Latest LLM benchmarks
+3. Multi-agent coordination patterns
+
+[Read more...]
 ```
 
 **Why this will be ignored:**
@@ -295,25 +314,36 @@ from personal_assistant import create_email_assistant
 # Create agent (local testing mode)
 agent = create_email_assistant(for_deployment=False)
 
-# Example email
-email_input = {
-    "author": "sarah.chen@techcorp.com",
-    "to": "lance@langchain.dev",
-    "subject": "Question about LangGraph deployment",
-    "email_thread": "Hi Lance,\n\nI'm working on deploying a LangGraph agent..."
-}
+# Example email as markdown string
+email_markdown = """
+**Subject**: Question about LangGraph deployment
+**From**: sarah.chen@techcorp.com
+**To**: lance@langchain.dev
 
-# Process email
+Hi Lance,
+
+I'm working on deploying a LangGraph agent to production and ran into an issue with the store configuration...
+
+Could you clarify when we should pass a store vs. letting the platform handle it?
+
+Thanks!
+Sarah
+"""
+
+# Process email - agent accepts message as simple string
 config = {"configurable": {"thread_id": "thread-1"}}
-result = agent.invoke({"email_input": email_input}, config=config)
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": email_markdown}]},
+    config=config
+)
 
-# Check for interrupts
+# Check for interrupts (HITL)
 if "__interrupt__" in result:
     print("Agent is waiting for approval")
     # Resume with decision
     from langgraph.types import Command
     result = agent.invoke(
-        Command(resume={"decisions": [{"type": "accept"}]}),
+        Command(resume=[{"type": "accept"}]),
         config=config
     )
 ```
