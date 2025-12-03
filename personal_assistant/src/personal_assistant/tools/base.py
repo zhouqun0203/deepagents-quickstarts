@@ -12,11 +12,12 @@ def get_tools(tool_names: Optional[List[str]] = None, include_gmail: bool = Fals
         List of tool objects
     """
     # Import default tools
-    from .default.email_tools import write_email, Done, Question
+    from .default.email_tools import write_email, triage_email, Done, Question
     from .default.calendar_tools import schedule_meeting, check_calendar_availability
-    
+
     # Base tools dictionary
     all_tools = {
+        "triage_email": triage_email,
         "write_email": write_email,
         "Done": Done,
         "Question": Question,

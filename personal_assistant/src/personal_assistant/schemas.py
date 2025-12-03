@@ -1,32 +1,14 @@
 from pydantic import BaseModel, Field
-from typing_extensions import TypedDict, Literal, NotRequired
-from langgraph.graph import MessagesState
-
-class RouterSchema(BaseModel):
-    """Analyze the unread email and route it according to its content."""
-
-    reasoning: str = Field(
-        description="Step-by-step reasoning behind the classification."
-    )
-    classification: Literal["ignore", "respond", "notify"] = Field(
-        description="The classification of an email: 'ignore' for irrelevant emails, "
-        "'notify' for important information that doesn't need a response, "
-        "'respond' for emails that need a reply",
-    )
-
-class StateInput(TypedDict):
-    # This is the input to the state
-    email_input: dict
-
-class State(MessagesState):
-    # This state class has the messages key build in
-    email_input: dict
-    classification_decision: Literal["ignore", "respond", "notify"]
+from typing_extensions import TypedDict, NotRequired
 
 class EmailAssistantState(TypedDict):
-    """State for email assistant agent using deepagents library."""
+    """State for email assistant agent using deepagents library.
+
+    The agent accepts email content as a simple message string and handles
+    triage through the triage_email tool.
+    """
     messages: list  # Required by MessagesState
-    email_input: NotRequired[dict]  # Email context for middleware display formatting
+    email_input: NotRequired[dict]  # Optional email context for middleware display formatting
 
 class EmailData(TypedDict):
     id: str

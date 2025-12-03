@@ -16,6 +16,7 @@ from ..prompts import (
     default_background,
     default_cal_preferences,
     default_response_preferences,
+    default_triage_instructions,
 )
 from ..tools.default.prompt_templates import HITL_MEMORY_TOOLS_PROMPT
 from ..utils import format_email_markdown, format_for_display, get_memory, parse_email, update_memory, aget_memory, aupdate_memory
@@ -82,7 +83,7 @@ class EmailAssistantHITLMiddleware(AgentMiddleware):
         triage_prefs = get_memory(
             store,
             ("email_assistant", "triage_preferences"),
-            default_response_preferences,
+            default_triage_instructions,
         )
         response_prefs = get_memory(
             store,
@@ -99,6 +100,7 @@ class EmailAssistantHITLMiddleware(AgentMiddleware):
         memory_prompt = agent_system_prompt_hitl_memory.format(
             tools_prompt=HITL_MEMORY_TOOLS_PROMPT,
             background=default_background,
+            triage_instructions=triage_prefs,
             response_preferences=response_prefs,
             cal_preferences=cal_prefs,
         )
