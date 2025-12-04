@@ -295,7 +295,6 @@ examples/personal_assistant/
     │
     ├── middleware/
     │   ├── __init__.py
-    │   ├── email_assistant_hitl.py   # DEPRECATED: Legacy HITL middleware (kept for reference)
     │   ├── email_memory_injection.py # Memory injection into system prompts
     │   ├── email_post_interrupt.py   # Post-interrupt memory updates
     │   └── email_genui.py            # GenUI integration for tool visualization
