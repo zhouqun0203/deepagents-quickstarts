@@ -40,15 +40,7 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
         After a rejection, the built-in HITL middleware adds a ToolMessage with
         status="error". We check for these BEFORE the next model call to update memory.
         """
-        print("DEBUG before_model: Hook called")
         messages = state.get("messages", [])
-        print(f"DEBUG before_model: Found {len(messages)} messages")
-
-        # Debug: Print message types
-        for idx, msg in enumerate(messages):
-            msg_type = type(msg).__name__
-            status = getattr(msg, "status", None)
-            print(f"DEBUG before_model: Message {idx}: {msg_type}, status={status}")
 
         # Look for ToolMessages with status="error" (rejections)
         for message in reversed(messages):
@@ -60,11 +52,9 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
                 tool_call_id = message.tool_call_id
                 tool_name = message.name
                 rejection_message = message.content
-                print(f"DEBUG before_model: Found rejection - tool_name={tool_name}, tool_call_id={tool_call_id}")
 
                 # Check if this is a tool we care about and haven't processed yet
                 if tool_name in self.interrupt_tools and tool_call_id not in self._processed_tool_calls:
-                    print(f"DEBUG before_model: Processing rejection for {tool_name}")
                     # Find the original tool call args from the AIMessage
                     original_args = {}
                     for msg in reversed(messages):
@@ -77,11 +67,9 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
                                 break
 
                     # Update memory with rejection message
-                    print(f"DEBUG before_model: Updating memory for rejection")
                     self._update_memory_for_reject(tool_name, original_args, rejection_message, state, runtime)
                     # Mark as processed
                     self._processed_tool_calls.add(tool_call_id)
-                    print(f"DEBUG before_model: Memory update complete")
 
         return None
 
@@ -102,22 +90,14 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
         return self.store
 
     def after_tool(self, state, runtime) -> dict | None:
-        """Check for rejected tool calls.
+        """Check for rejected tool calls (fallback hook).
 
-        When a user rejects a tool call with built-in interrupt_on, a ToolMessage
-        with status="error" is created containing the rejection reason.
+        Note: Rejections are primarily detected in before_model hook.
+        This hook serves as a fallback in case after_tool runs after rejections.
         """
-        print("DEBUG after_tool: Hook called")
         messages = state.get("messages", [])
-        print(f"DEBUG after_tool: Found {len(messages)} messages")
         if not messages:
             return None
-
-        # Debug: Print message types
-        for idx, msg in enumerate(messages):
-            msg_type = type(msg).__name__
-            status = getattr(msg, "status", None)
-            print(f"DEBUG after_tool: Message {idx}: {msg_type}, status={status}")
 
         # Look for ToolMessages with status="error" (rejections)
         for message in reversed(messages):
@@ -128,12 +108,10 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
 
                 tool_call_id = message.tool_call_id
                 tool_name = message.name
-                rejection_message = message.content  # This contains the user's rejection reason
-                print(f"DEBUG after_tool: Found rejection - tool_name={tool_name}, tool_call_id={tool_call_id}")
+                rejection_message = message.content
 
                 # Check if this is a tool we care about and haven't processed yet
                 if tool_name in self.interrupt_tools and tool_call_id not in self._processed_tool_calls:
-                    print(f"DEBUG after_tool: Processing rejection for {tool_name}")
                     # Find the original tool call args from the AIMessage
                     original_args = {}
                     for msg in reversed(messages):
@@ -146,13 +124,9 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
                                 break
 
                     # Update memory with rejection message
-                    print(f"DEBUG after_tool: Updating memory for rejection")
                     self._update_memory_for_reject(tool_name, original_args, rejection_message, state, runtime)
                     # Mark as processed
                     self._processed_tool_calls.add(tool_call_id)
-                    print(f"DEBUG after_tool: Memory update complete")
-                else:
-                    print(f"DEBUG after_tool: Skipping - tool_name in interrupt_tools: {tool_name in self.interrupt_tools}, already processed: {tool_call_id in self._processed_tool_calls}")
 
         return None
 
@@ -202,15 +176,7 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
 
     async def abefore_model(self, state, runtime) -> dict | None:
         """Async version - check for rejected tool calls before next model generation."""
-        print("DEBUG abefore_model: Hook called")
         messages = state.get("messages", [])
-        print(f"DEBUG abefore_model: Found {len(messages)} messages")
-
-        # Debug: Print message types
-        for idx, msg in enumerate(messages):
-            msg_type = type(msg).__name__
-            status = getattr(msg, "status", None)
-            print(f"DEBUG abefore_model: Message {idx}: {msg_type}, status={status}")
 
         # Look for ToolMessages with status="error" (rejections)
         for message in reversed(messages):
@@ -222,11 +188,9 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
                 tool_call_id = message.tool_call_id
                 tool_name = message.name
                 rejection_message = message.content
-                print(f"DEBUG abefore_model: Found rejection - tool_name={tool_name}, tool_call_id={tool_call_id}")
 
                 # Check if this is a tool we care about and haven't processed yet
                 if tool_name in self.interrupt_tools and tool_call_id not in self._processed_tool_calls:
-                    print(f"DEBUG abefore_model: Processing rejection for {tool_name}")
                     # Find the original tool call args from the AIMessage
                     original_args = {}
                     for msg in reversed(messages):
@@ -239,11 +203,9 @@ class PostInterruptMemoryMiddleware(AgentMiddleware):
                                 break
 
                     # Update memory with rejection message
-                    print(f"DEBUG abefore_model: Updating memory for rejection")
                     await self._aupdate_memory_for_reject(tool_name, original_args, rejection_message, state, runtime)
                     # Mark as processed
                     self._processed_tool_calls.add(tool_call_id)
-                    print(f"DEBUG abefore_model: Memory update complete")
 
         return None
 
